@@ -8,6 +8,8 @@ from typing import Dict, List, Union
 import inflection
 from rich.console import Console, ConsoleRenderable
 
+from module.config.config_manual import CLOUD_UNSUPPORTED_TASKS
+from module.config.deep import deep_get
 from module.logger import logger, set_file_logger, set_func_logger
 from module.webui.fake import get_config_mod, mod_instance
 from module.webui.setting import State
@@ -26,11 +28,22 @@ class ProcessManager:
         self._process: Process = None
         self._process_locks: Dict[str, threading.Lock] = {}
         self.thd_log_queue_handler: threading.Thread = None
+        self._cloud_runtime = None
 
     def start(self, func, ev: threading.Event = None) -> None:
         if not self.alive:
             if func is None:
                 func = get_config_mod(self.config_name)
+            data = State.config_updater.read_file(self.config_name)
+            bridge = None
+            if deep_get(data, 'Alas.Emulator.GameClient') == 'cloud_direct':
+                if inflection.camelize(func) in CLOUD_UNSUPPORTED_TASKS:
+                    logger.warning(f'[{self.config_name}] {func} is disabled in cloud protocol mode')
+                    return
+                from module.device.cloud.runtime import get_runtime
+                self._cloud_runtime = get_runtime(self.config_name)
+                self._cloud_runtime.scheduler_acquire()
+                bridge = self._cloud_runtime.bridge
             self._process = Process(
                 target=ProcessManager.run_process,
                 args=(
@@ -38,9 +51,15 @@ class ProcessManager:
                     func,
                     self._renderable_queue,
                     ev,
+                    bridge,
                 ),
             )
-            self._process.start()
+            try:
+                self._process.start()
+            except Exception:
+                if self._cloud_runtime is not None:
+                    self._cloud_runtime.scheduler_release()
+                raise
             self.start_log_queue_handler()
 
     def start_log_queue_handler(self):
@@ -63,6 +82,11 @@ class ProcessManager:
 
         with lock:
             if self.alive:
+                if self._cloud_runtime is not None:
+                    try:
+                        self._cloud_runtime.scheduler_release()
+                    except Exception:
+                        logger.warning('Cloud instance exit could not be confirmed')
                 self._process.kill()
                 self.renderables.append(
                     f"[{self.config_name}] exited. Reason: Manual stop\n"
@@ -124,7 +148,7 @@ class ProcessManager:
 
     @staticmethod
     def run_process(
-        config_name, func: str, q: queue.Queue, e: threading.Event = None
+        config_name, func: str, q: queue.Queue, e: threading.Event = None, cloud_bridge=None,
     ) -> None:
         parser = argparse.ArgumentParser()
         parser.add_argument(
@@ -132,6 +156,7 @@ class ProcessManager:
         )
         args, _ = parser.parse_known_args()
         State.electron = args.electron
+        State.cloud_bridge = cloud_bridge
 
         # Setup logger
         set_file_logger(name=config_name)
@@ -163,6 +188,10 @@ class ProcessManager:
             logger.info(f"[{config_name}] exited. Reason: Finish\n")
         except Exception as e:
             logger.exception(e)
+        finally:
+            if cloud_bridge is not None:
+                from module.device.cloud.runtime import CloudProxy
+                CloudProxy(cloud_bridge).stop()
 
     @classmethod
     def running_instances(cls) -> List["ProcessManager"]:

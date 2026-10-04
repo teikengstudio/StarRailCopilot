@@ -62,7 +62,7 @@ class UI(MainPage):
 
         @run_once
         def cloud_login():
-            if self.config.is_cloud_game:
+            if self.config.is_cloud_game and not self.config.is_cloud_direct:
                 from tasks.login.login import Login
                 login = Login(config=self.config, device=self.device)
                 self.device.dump_hierarchy()

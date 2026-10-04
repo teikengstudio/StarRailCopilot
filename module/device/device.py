@@ -301,6 +301,9 @@ class Device(Screenshot, Control, AppControl):
         self.click_record_check = empty_function
         self.stuck_record_check = empty_function
 
+    def set_clipboard(self, text):
+        self.u2.set_clipboard(text)
+
     def app_start(self):
         super().app_start()
         self.stuck_record_clear()
@@ -310,3 +313,14 @@ class Device(Screenshot, Control, AppControl):
         super().app_stop()
         self.stuck_record_clear()
         self.click_record_clear()
+
+
+def create_device(config):
+    from module.config.config import AzurLaneConfig
+
+    if isinstance(config, str):
+        config = AzurLaneConfig(config)
+    if config.is_cloud_direct:
+        from module.device.cloud.device import CloudDevice
+        return CloudDevice(config)
+    return Device(config=config)

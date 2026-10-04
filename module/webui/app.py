@@ -52,6 +52,7 @@ from module.config.utils import (
 )
 from module.logger import logger
 from module.webui.base import Frame
+from module.webui.cloud import CloudPanel
 from module.webui.fake import (
     get_config_mod,
     load_config,
@@ -109,6 +110,7 @@ class AlasGUI(Frame):
 
     def __init__(self) -> None:
         super().__init__()
+        self.cloud_panel = CloudPanel(self)
         # modified keys, return values of pin_wait_change()
         self.modified_config_queue = queue.Queue()
         # alas config name
@@ -122,6 +124,19 @@ class AlasGUI(Frame):
         self.inst_cache = []
         self.load_home = False
         self.af_flag = False
+
+    def init_menu(self, collapse_menu=True, name=None):
+        self.cloud_panel.close()
+        super().init_menu(collapse_menu=collapse_menu, name=name)
+
+    def init_aside(self, expand_menu=True, name=None):
+        self.cloud_panel.close()
+        super().init_aside(expand_menu=expand_menu, name=name)
+
+    def stop(self):
+        if hasattr(self, 'cloud_panel'):
+            self.cloud_panel.close()
+        super().stop()
 
     @use_scope("aside", clear=True)
     def set_aside(self) -> None:
@@ -251,6 +266,7 @@ class AlasGUI(Frame):
                             "label": t(f"Task.{task}.name"),
                             "value": task,
                             "color": "menu",
+                            "disabled": not self.alas_config.is_task_supported(task),
                         }],
                         onclick=_onclick,
                     ).style(f"--menu-{task}--")
@@ -271,6 +287,7 @@ class AlasGUI(Frame):
                             "label": t(f"Task.{task}.name"),
                             "value": task,
                             "color": "menu",
+                            "disabled": not self.alas_config.is_task_supported(task),
                         }],
                         onclick=_onclick,
                     ).style(f"--menu-{task}--").style(f"padding-left: 0.75rem")
@@ -368,6 +385,8 @@ class AlasGUI(Frame):
             put_html('<hr class="hr-group">')
             for output in output_list:
                 output.show()
+            if group_name == 'Emulator':
+                self.cloud_panel.mount(task, deep_get(config, [task, group_name, 'GameClient'], 'android'))
 
         return len(output_list)
 
@@ -513,6 +532,8 @@ class AlasGUI(Frame):
     def _init_alas_config_watcher(self) -> None:
         def put_queue(path, value):
             self.modified_config_queue.put({"name": path, "value": value})
+            if path.endswith('.Emulator.GameClient'):
+                self.cloud_panel.select_mode('_'.join(path.split('.')), value)
 
         for path in get_alas_config_listen_path(self.ALAS_ARGS):
             pin_on_change(
@@ -594,11 +615,17 @@ class AlasGUI(Frame):
                     f"Save config {filepath_config(config_name)}, {dict_to_kv(modified)}"
                 )
                 config_updater.write_file(config_name, config)
+                if 'Alas.Emulator.GameClient' in modified:
+                    from module.config.config_manual import CLOUD_UNSUPPORTED_TASKS
+                    disabled = deep_get(config, 'Alas.Emulator.GameClient') == 'cloud_direct'
+                    for task in CLOUD_UNSUPPORTED_TASKS:
+                        run_js("$('div[style*=\"--menu-' + task + '--\"]>button').prop('disabled', disabled)",
+                               task=task, disabled=disabled)
         except Exception as e:
             logger.exception(e)
 
     def alas_update_overview_task(self) -> None:
-        if not self.visible:
+        if not self.visible or self.page != 'Overview':
             return
         self.alas_config.load()
         self.alas_config.get_next_task()
@@ -656,6 +683,8 @@ class AlasGUI(Frame):
                         put_task(task)
                 else:
                     put_text(t("Gui.Overview.NoTask")).style("--overview-notask-text--")
+        if self.page != 'Overview':
+            return
 
         for arg, arg_dict in self.ALAS_STORED.items():
             # Skip order=0
@@ -670,6 +699,9 @@ class AlasGUI(Frame):
 
     @use_scope("content", clear=True)
     def alas_daemon_overview(self, task: str) -> None:
+        if not self.alas_config.is_task_supported(task):
+            toast('协议模式不支持此工具。', color='error')
+            return
         self.init_menu(name=task)
         self.set_title(t(f"Task.{task}.name"))
 
@@ -1341,6 +1373,8 @@ def clearup():
     # stop_ocr_server_process()
     for alas in ProcessManager._processes.values():
         alas.stop()
+    from module.device.cloud.runtime import shutdown_all
+    shutdown_all()
     State.clearup()
     task_handler.stop()
     logger.info("Alas closed.")
@@ -1410,5 +1444,7 @@ def app():
         ],
         on_shutdown=[clearup],
     )
+    from module.webui.cloud_preview import add_preview_routes
+    add_preview_routes(app, key=key, cdn=cdn)
 
     return app

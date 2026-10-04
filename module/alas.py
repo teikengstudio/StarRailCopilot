@@ -40,8 +40,8 @@ class AzurLaneAutoScript:
     @cached_property
     def device(self):
         try:
-            from module.device.device import Device
-            device = Device(config=self.config)
+            from module.device.device import create_device
+            device = create_device(config=self.config)
             return device
         except RequestHumanTakeover:
             logger.critical('Request human takeover')
@@ -74,6 +74,9 @@ class AzurLaneAutoScript:
 
     def run(self, command):
         try:
+            if not self.config.is_task_supported(inflection.camelize(command)):
+                logger.warning(f'Task `{command}` is disabled in cloud protocol mode')
+                return True
             self.device.screenshot()
             self.device.screenshot_tracking.clear()
             self.__getattribute__(command)()

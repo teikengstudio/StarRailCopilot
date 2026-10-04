@@ -7,7 +7,7 @@ from pynput import keyboard
 from module.config.config import AzurLaneConfig
 from module.config.utils import alas_instance
 from module.device.connection import Connection, ConnectionAttr
-from module.device.device import Device
+from module.device.device import create_device
 from module.logger import logger
 
 """
@@ -48,7 +48,6 @@ def handle_sensitive_info(image):
     return image
 
 
-_ = EmptyConnection()
 name = input(
     '输入src配置文件名称，或者模拟器serial，或者模拟器端口号: (默认输入 "src"):\n'
     '例如："src", "127.0.0.1:16384", "7555"\n'
@@ -60,8 +59,9 @@ if name.isdigit():
     name = f'127.0.0.1:{name}'
 if name in alas_instance():
     print(f'{name} is an existing config file')
-    device = Device(name)
+    device = create_device(name)
 else:
+    _ = EmptyConnection()
     print(f'{name} is a device serial')
     config = AzurLaneConfig('template')
     config.override(
@@ -69,7 +69,7 @@ else:
         Emulator_PackageName='com.miHoYo.hkrpg',
         Emulator_ScreenshotMethod='adb_nc',
     )
-    device = Device(config)
+    device = create_device(config)
 
 output = './screenshots/dev_screenshots'
 os.makedirs(output, exist_ok=True)

@@ -3,7 +3,7 @@ from module.base.button import Button, ButtonWrapper, ClickButton, match_templat
 from module.base.timer import Timer
 from module.base.utils import *
 from module.config.config import AzurLaneConfig
-from module.device.device import Device
+from module.device.device import Device, create_device
 from module.device.method.utils import HierarchyButton
 from module.logger import logger
 from module.webui.setting import cached_class_property
@@ -39,10 +39,10 @@ class ModuleBase:
         if isinstance(device, Device):
             self.device = device
         elif device is None:
-            self.device = Device(config=self.config)
+            self.device = create_device(config=self.config)
         elif isinstance(device, str):
             self.config.override(Emulator_Serial=device)
-            self.device = Device(config=self.config)
+            self.device = create_device(config=self.config)
         else:
             logger.warning('Alas ModuleBase received an unknown device, assume it is Device')
             self.device = device
