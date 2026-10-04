@@ -26,6 +26,8 @@ def _public_error(exc):
         return "Cloud connection or video frame timed out."
     code = re.search(r"retcode=(-?\d+)", str(exc))
     if code:
+        if code[1] == "-110003":
+            return "云游戏可用时长不足（retcode=-110003）。请检查官方页面的免费时长、星云币或畅玩卡余额。"
         return "Cloud service rejected the request (retcode=%s)." % code[1]
     return "Cloud connection failed (%s)." % type(exc).__name__
 
