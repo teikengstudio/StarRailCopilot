@@ -456,6 +456,9 @@ class Dispatcher:
         self._assert_ok("webLogin", web_login)
         web_login_data = web_login.get("data") or {}
         self._runtime_combo_token = self._build_combo_token(web_login_data)
+        # Official WebUI initializes the cloud account before reading time or dispatching.
+        cloud_login = self._dispatch_post("/gamer/api/login", {}, self._dispatch_headers())
+        self._assert_ok("cloudLogin", cloud_login)
         sdk_login = self._sdk_login(channel_token, web_login_data)
         self.last_account_sync = {
             "sdk_login": sdk_login,
