@@ -82,6 +82,13 @@ class Updater(DeployConfig, GitManager, PipManager):
                 pass
 
         source = "origin"
+        remote = self.execute_output(f'"{self.git}" remote get-url {source}').strip()
+        if remote != self.Repository:
+            if not self.execute(
+                f'"{self.git}" remote set-url {source} "{self.Repository}"', allow_failure=True
+            ):
+                logger.warning("Could not configure the update repository")
+                return False
         for _ in range(3):
             if self.execute(
                 f'"{self.git}" fetch {source} {self.Branch}', allow_failure=True

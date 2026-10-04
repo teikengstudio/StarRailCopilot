@@ -14,7 +14,7 @@ class ExecutionError(Exception):
 
 class ConfigModel:
     # Git
-    Repository: str = "https://github.com/LmeSzinc/AzurLaneAutoScript"
+    Repository: str = "https://github.com/teikengstudio/StarRailCopilot.git"
     Branch: str = "master"
     GitExecutable: str = "./toolkit/Git/mingw64/bin/git.exe"
     GitProxy: Optional[str] = None
@@ -123,9 +123,10 @@ class DeployConfig(ConfigModel):
         """
         # Bypass webui.config.DeployConfig.__setattr__()
         # Don't write these into deploy.yaml
-        super().__setattr__('GitOverCdn', self.Repository in ['cn'])
+        # This fork has no git-over-CDN pack; upstream packs would replace it.
+        super().__setattr__('GitOverCdn', False)
         if self.Repository in ['global', 'cn']:
-            super().__setattr__('Repository', 'https://github.com/LmeSzinc/StarRailCopilot')
+            super().__setattr__('Repository', ConfigModel.Repository)
 
     def filepath(self, path):
         """
