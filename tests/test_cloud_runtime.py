@@ -88,6 +88,19 @@ class RuntimeControlTests(unittest.TestCase):
 
 
 class DeviceGenerationTests(unittest.TestCase):
+    def test_reloaded_config_cannot_switch_protocol_clicks_back_to_adb(self):
+        from module.device.cloud.device import CloudDevice
+        device = CloudDevice.__new__(CloudDevice)
+        sent = []
+        device._touch = lambda x, y, action: sent.append(action)
+        for _ in range(2):
+            config = SimpleNamespace(Emulator_ScreenshotMethod='scrcpy', Emulator_ControlMethod='MaaTouch')
+            config.override = lambda **values: config.__dict__.update(values)
+            device.config = config
+            device.click_methods[device.config.Emulator_ControlMethod](10, 20)
+        self.assertEqual(sent, ['down', 'up', 'down', 'up'])
+        self.assertEqual(config.Emulator_ScreenshotMethod, 'cloud_direct')
+
     def test_first_start_accepts_current_session_but_reconnect_invalidates_screen(self):
         from module.device.cloud.device import CloudDevice
         from module.exception import GameNotRunningError

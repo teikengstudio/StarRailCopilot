@@ -182,9 +182,7 @@ class Login(LoginAndroidCloud, RogueUI, AgreementHandler, UIDHandler):
         logger.hr('App start')
         self.device.app_start()
 
-        if self.config.is_cloud_direct:
-            self.device.screenshot()
-        elif self.config.is_cloud_game:
+        if self.config.is_cloud_game and not self.config.is_cloud_direct:
             self.device.dump_hierarchy()
             self.cloud_enter_game()
         else:
@@ -195,9 +193,7 @@ class Login(LoginAndroidCloud, RogueUI, AgreementHandler, UIDHandler):
         self.device.app_stop()
         self.device.app_start()
 
-        if self.config.is_cloud_direct:
-            self.device.screenshot()
-        elif self.config.is_cloud_game:
+        if self.config.is_cloud_game and not self.config.is_cloud_direct:
             self.device.dump_hierarchy()
             self.cloud_enter_game()
         else:

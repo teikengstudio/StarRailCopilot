@@ -6,6 +6,7 @@ from dataclasses import replace
 import logging
 import math
 import re
+import ssl
 import threading
 import time
 
@@ -22,6 +23,8 @@ class CloudConnectionError(RuntimeError):
 def _public_error(exc):
     if isinstance(exc, (CloudAccountError, CloudConnectionError)):
         return str(exc)
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        return "Cloud TLS certificate verification failed: %s." % exc.verify_message
     if isinstance(exc, (TimeoutError, concurrent.futures.TimeoutError)):
         return "Cloud connection or video frame timed out."
     code = re.search(r"retcode=(-?\d+)", str(exc))
@@ -251,7 +254,9 @@ class CloudClient:
                     if not isinstance(exc, (ConnectionError, OSError, TimeoutError)) or retries >= 3:
                         self._allocation_uncertain = not released
                         if self._allocation_uncertain:
-                            raise CloudConnectionError("Cloud reconnection failed; previous instance exit is uncertain. No new instance was allocated.") from None
+                            raise CloudConnectionError(
+                                _public_error(exc) + " Previous instance exit is uncertain; no new instance was allocated."
+                            ) from None
                         raise
                     self.status = "Reconnecting"
                     delay = (1, 2, 4)[retries]

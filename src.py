@@ -1,4 +1,5 @@
 from module.alas import AzurLaneAutoScript
+from module.exception import RequestHumanTakeover
 from module.logger import logger
 
 
@@ -30,7 +31,13 @@ class StarRailCopilot(AzurLaneAutoScript):
         # Exit cloud game to reduce extra fee
         if self.config.is_cloud_game:
             from tasks.login.login import Login
-            Login(self.config, device=self.device).app_stop()
+            if self.config.is_cloud_direct:
+                try:
+                    Login(self.config, device=self.device).app_stop()
+                except RequestHumanTakeover as exc:
+                    logger.error(f'Cloud cleanup was not confirmed: {exc}')
+            else:
+                Login(self.config, device=self.device).app_stop()
 
     def dungeon(self):
         from tasks.dungeon.dungeon import Dungeon
@@ -83,4 +90,8 @@ class StarRailCopilot(AzurLaneAutoScript):
 
 if __name__ == '__main__':
     src = StarRailCopilot('src')
-    src.loop()
+    try:
+        src.loop()
+    finally:
+        if 'device' in src.__dict__ and src.config.is_cloud_direct:
+            src.error_postprocess()

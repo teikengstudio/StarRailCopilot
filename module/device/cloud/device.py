@@ -17,9 +17,17 @@ from .client import CloudClient, CloudConnectionError
 
 
 class CloudDevice(Device):
+    @property
+    def config(self):
+        return self._config
+
+    @config.setter
+    def config(self, config):
+        config.override(Emulator_ScreenshotMethod='cloud_direct', Emulator_ControlMethod='cloud_direct')
+        self._config = config
+
     def __init__(self, config):
         self.config = config
-        self.config.override(Emulator_ScreenshotMethod='cloud_direct', Emulator_ControlMethod='cloud_direct')
         self.serial = 'cloud_direct'
         self.package = 'cloud_direct'
         self.orientation = 0

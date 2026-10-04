@@ -17,6 +17,7 @@ from aiortc.mediastreams import MediaStreamError
 from aiortc.sdp import candidate_from_sdp, candidate_to_sdp
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
+from urllib3.util.ssl_match_hostname import CertificateError, match_hostname
 
 from .config import CoreConfig, normalize_core_config
 from .log import emit_log_callback, get_logger
@@ -69,12 +70,28 @@ START_GAME_LINK_TASKS_MS = 200
 CLIENT_HELLO_JSON = '{"client_type":"web","type":"client hello"}'
 
 
+class _CloudTLSObject(ssl.SSLObject):
+    def do_handshake(self):
+        super().do_handshake()
+        try:
+            match_hostname(self.getpeercert(), self.server_hostname)
+        except CertificateError as exc:
+            error = ssl.SSLCertVerificationError(str(exc))
+            error.verify_message = str(exc)
+            raise error from None
+
+
 async def connect_websocket(url: str, *, timeout: float = 10, headers: Mapping[str, str] | None = None):
     """Connect with certificate and hostname verification enabled."""
     request_headers = dict(headers or {})
     origin = request_headers.pop("Origin", None)
     user_agent = request_headers.pop("User-Agent", None)
     ssl_context = ssl.create_default_context()
+    # OpenSSL rejects wildcard matching for underscore labels used by cloud nodes.
+    # Check the exact hostname during TLS, before any WebSocket credentials are sent.
+    if '_' in (urlsplit(url).hostname or ''):
+        ssl_context.check_hostname = False
+        ssl_context.sslobject_class = _CloudTLSObject
     return await connect(
         url,
         ssl=ssl_context,
