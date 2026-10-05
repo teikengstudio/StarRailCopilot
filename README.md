@@ -105,6 +105,8 @@ python gui.py
 
 本分支不提供新的统一 Docker 镜像或 Compose 模板。沿用已有 Dockerfile 时，需将镜像内依赖更新到 `requirements.txt` 对应版本，再重建或替换容器；只拉取源码不足以完成旧环境升级。原实例的客户端模式、凭据、访问密码与自动运行列表应保留，不自动迁移到协议模式。
 
+如果挂载目录只因可执行权限而被 Git 识别为大量修改，可在容器的 `/app` 中执行 `git config --local core.fileMode false`。更新器会在重新初始化仓库后保留该设置，避免仅权限差异导致 `stash` 后仍无法快进更新；文件内容修改仍按原有保留本地修改流程处理。
+
 ## 跟随上游更新
 
 [Sync upstream 工作流](https://github.com/teikengstudio/StarRailCopilot/actions/workflows/sync-upstream.yml) 计划每天北京时间 **11:23**（UTC 03:23）检查 `LmeSzinc/StarRailCopilot` 的 `master`；GitHub 定时触发可能延迟。也可在 Actions 页面手动运行，操作账号须具备所需仓库权限。
