@@ -1855,6 +1855,12 @@
         "display": "display",
         "stored": "StoredBattlePassQuestSynthesizeConsumables"
       },
+      "BattlePassQuestPartyCar": {
+        "type": "stored",
+        "value": {},
+        "display": "display",
+        "stored": "StoredBattlePassQuestPartyCar"
+      },
       "BattlePassQuestStagnantShadow": {
         "type": "stored",
         "value": {},
