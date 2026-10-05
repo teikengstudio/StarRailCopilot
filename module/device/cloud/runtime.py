@@ -6,6 +6,8 @@ import threading
 import time
 import uuid
 
+from module.logger import logger
+
 from .client import CloudClient, CloudConnectionError, _public_error, validate_input
 
 _runtimes = {}
@@ -122,6 +124,7 @@ class CloudRuntime:
                     "connected": self.client.running,
                     "busy": self._closing or self.client.status in ("Authenticating", "Waiting in queue", "Connecting", "Reconnecting"),
                     "queue_type": self.client.queue_type, "paused": self._paused,
+                    "queue_log": self.client.queue_log,
                     "pause_requested": self._pause_requested,
                     "pending_owner": self._pending_owner,
                     "control_owner": self._control_owner, "scheduler": self._scheduler,
@@ -514,6 +517,7 @@ class CloudProxy:
             self._heartbeat_thread = threading.Thread(target=self._heartbeat, args=(self._heartbeat_stop,), daemon=True)
             self._heartbeat_thread.start()
         self._call("start")
+        last_queue_log = ""
         while not self.running:
             if cancel_event is not None and cancel_event.is_set():
                 self.stop()
@@ -522,6 +526,10 @@ class CloudProxy:
                 raise CloudConnectionError(self.error)
             if not self.bridge["state"].get("scheduler", False):
                 raise CloudConnectionError("Cloud scheduler lease was released.")
+            queue_log = self.bridge["state"].get("queue_log", "")
+            if queue_log and queue_log != last_queue_log:
+                logger.info(queue_log)
+                last_queue_log = queue_log
             time.sleep(0.05)
 
     def _heartbeat(self, stop_event):

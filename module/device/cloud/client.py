@@ -10,6 +10,8 @@ import ssl
 import threading
 import time
 
+from module.logger import logger
+
 from .account import CloudAccount, CloudAccountError
 from .core.cloud_game import CloudGame, CloudGameCallbacks
 from .core.config import CoreConfig
@@ -69,6 +71,7 @@ class CloudClient:
         self.on_frame = on_frame
         self.on_connected = on_connected
         self.status = "Disconnected"
+        self.queue_log = ""
         self.error = None
         self.generation = 0
         self._lock = threading.RLock()
@@ -91,6 +94,12 @@ class CloudClient:
         if "queue" in message.lower() and not self.running:
             self.status = "Waiting in queue"
 
+    def _dispatch_log(self, message, level=logging.INFO):
+        # Only queue metrics belong in SRC logs; other protocol lines contain credentials.
+        if re.fullmatch(r"排队轮询 [0-9]+：当前排名=[0-9?]+/[0-9?]+，总队列数=[0-9?]+，预计等待=(?:[0-9]+(?:\.[0-9]+)?|\?)分钟", message):
+            self.queue_log = message
+            logger.info(message)
+
     def start(self, cancel_event=None):
         """Concurrent callers wait for the same startup, never allocate twice."""
         with self._lock:
@@ -102,6 +111,7 @@ class CloudClient:
                 return
             if self._thread is None or not self._thread.is_alive():
                 self.error = None
+                self.queue_log = ""
                 self.status = "Authenticating"
                 self._stop_event = cancel_event if cancel_event is not None else threading.Event()
                 self._ready = threading.Event()
@@ -223,7 +233,8 @@ class CloudClient:
             CloudGameConfig(core_config=CoreConfig(profile), root_dir=self.account.root_dir,
                             queue_type=self.queue_type, ws_log_payload=False,
                             video_frame_interval=0.1 if self.on_frame else None),
-            callbacks=CloudGameCallbacks(on_status=self._status, on_video_frame=self.on_frame),
+            callbacks=CloudGameCallbacks(on_status=self._status, on_dispatch_log=self._dispatch_log,
+                                        on_video_frame=self.on_frame),
         )
         finish = None
         try:

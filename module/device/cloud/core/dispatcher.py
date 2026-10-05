@@ -704,12 +704,15 @@ class Dispatcher:
 
     def _log_ticket_poll(self, attempt: int, ticket_status: str, ticket_data: dict, line_callback=None) -> None:
         """输出一次排队轮询结果。"""
+        if ticket_status != "QUEUEING":
+            return
         queue_info = ticket_data.get("queue_info") or {}
-        queue_rank = queue_info.get("queue_rank") or ticket_data.get("queue_rank") or "?"
+        queue_rank = queue_info.get("queue_rank", ticket_data.get("queue_rank"))
+        queue_rank = "?" if queue_rank is None else queue_rank
         queue_length = queue_info.get("queue_length") or queue_info.get("queue_len") or ticket_data.get("queue_length") or "?"
         branch_queue_len = queue_info.get("branch_queue_len") or ticket_data.get("branch_queue_len") or "?"
-        waiting_time_min = queue_info.get("waiting_time_min") or ticket_data.get("waiting_time_min") or "?"
-        query_interval = queue_info.get("query_interval") or ticket_data.get("query_interval") or "?"
+        waiting_time_min = queue_info.get("waiting_time_min", ticket_data.get("waiting_time_min"))
+        waiting_time_min = "?" if waiting_time_min is None else waiting_time_min
         self._line(
             line_callback,
             (
