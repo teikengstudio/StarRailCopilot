@@ -273,6 +273,24 @@ class CloudClient:
                 self._allocation_uncertain = session is None or not session._stop_ack.is_set()
             self._game.dispatcher.close()
 
+    def wallet_info(self):
+        """Read balances using the active session, or HTTP only when disconnected."""
+        game = self._game if self.running else None
+        own_game = game is None
+        try:
+            if own_game:
+                profile = self.account.read()["profile"]
+                profile.setdefault("platform_profile", {})["mode"] = "touch"
+                game = CloudGame(CloudGameConfig(core_config=CoreConfig(profile), root_dir=self.account.root_dir))
+                self.account.ensure_login(game)
+                return game.get_wallet_info()["summary"]
+            return game.dispatcher.wallet_info()["summary"]
+        except Exception as exc:
+            raise CloudConnectionError(_public_error(exc)) from None
+        finally:
+            if own_game and game is not None:
+                game.dispatcher.close()
+
     def capture(self, timeout=5):
         if not 0 < timeout <= 60:
             raise ValueError("Invalid capture timeout")

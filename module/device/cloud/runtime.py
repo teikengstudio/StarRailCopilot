@@ -377,6 +377,12 @@ class CloudRuntime:
         finally:
             self._capture_slots.release()
 
+    def _wallet_reply(self, request_id):
+        try:
+            self._reply(request_id, True, self.client.wallet_info())
+        except Exception as exc:
+            self._reply(request_id, False, _public_error(exc))
+
     def _commands(self):
         while not self._shutdown.is_set():
             try:
@@ -401,6 +407,9 @@ class CloudRuntime:
                         self.scheduler_acquire()
                         self.connect()
                     value = None
+                elif method == "wallet" and not args:
+                    threading.Thread(target=self._wallet_reply, args=(request_id,), daemon=True).start()
+                    continue
                 elif method == "checkpoint" and not args:
                     value = self._checkpoint()
                 elif method == "input" and len(args) == 2:
@@ -543,6 +552,10 @@ class CloudProxy:
         generation = self._operation_checkpoint()
         size, pixels = self._call("capture", timeout, generation, timeout=timeout + 2)
         return Image.frombytes("RGB", size, pixels)
+
+    def wallet_info(self):
+        self.before_action()
+        return self._call("wallet", timeout=25)
 
     def touch(self, x, y, action, finger_id=0):
         x, y = float(x), float(y)

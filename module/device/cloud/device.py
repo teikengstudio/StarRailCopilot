@@ -106,6 +106,20 @@ class CloudDevice(Device):
     def app_is_running(self):
         return self.client.running
 
+    def update_cloud_wallet(self):
+        """Persist wallet minutes and remaining pass days (rounded up while active)."""
+        try:
+            wallet = self.client.wallet_info()
+        except CloudConnectionError as exc:
+            raise RequestHumanTakeover(str(exc)) from None
+        days = (max(0, wallet['play_card_remaining_sec']) + 86399) // 86400
+        with self.config.multi_set():
+            self.config.stored.CloudRemainSeasonPass.value = days
+            self.config.stored.CloudRemainPaid.value = wallet['coin_minutes']
+            self.config.stored.CloudRemainFree.value = wallet['free_time_minutes']
+        logger.info(f"Cloud remain: season pass {days} days, "
+                    f"{wallet['coin_minutes']} min paid, {wallet['free_time_minutes']} min free")
+
     def get_orientation(self):
         return 0  # The negotiated stream is always landscape 1280x720.
 
