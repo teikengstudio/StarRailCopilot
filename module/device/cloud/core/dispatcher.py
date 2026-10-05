@@ -108,7 +108,6 @@ logger = get_logger("dispatcher")
 
 @dataclass
 class DispatchConfig:
-    max_polls: int = 3000 # 默认足够大
     queue_type: str = ""
     node: str = ""
     # None = 跟随 core_config.platform_profile（桌面=7 / 手机触控=8）
@@ -714,7 +713,7 @@ class Dispatcher:
         self._line(
             line_callback,
             (
-                f"排队轮询 {attempt}/{self.config.max_polls}："
+                f"排队轮询 {attempt}："
                 f"当前排名={queue_rank}/{queue_length}，总队列数={branch_queue_len}，"
                 f"预计等待={waiting_time_min}分钟"
             ),
@@ -730,10 +729,12 @@ class Dispatcher:
             stop_event=None,
     ) -> dict:
         """轮询排队 ticket，成功后 ack 并返回 finish_result。"""
-        for attempt in range(1, self.config.max_polls + 1):
+        attempt = 0
+        while True:
+            attempt += 1
             self._line(
                 line_callback,
-                f"poll {attempt}/{self.config.max_polls}; waiting {query_interval}s",
+                f"poll {attempt}; waiting {query_interval}s",
                 level=logging.DEBUG,
             )
             self._sleep(query_interval, stop_event=stop_event)
@@ -755,7 +756,6 @@ class Dispatcher:
             if ticket_status != "QUEUEING":
                 raise RuntimeError(f"ticket failed: {ticket_status}")
             query_interval = int(ticket_data.get("queue_info", {}).get("query_interval") or query_interval)
-        raise RuntimeError(f"poll timeout after {self.config.max_polls} attempts")
 
     def run(self, line_callback=None, status_callback=None, stop_event=None) -> dict:
         """执行完整的云游戏调度流程。"""

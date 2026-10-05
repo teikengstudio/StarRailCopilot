@@ -109,9 +109,7 @@ class CloudClient:
                 self._thread = threading.Thread(target=self._worker, name="src-cloud-session", daemon=True)
                 self._thread.start()
             ready = self._ready
-        if not ready.wait(1860):
-            self.stop()
-            raise CloudConnectionError("Cloud queue or startup timed out.")
+        ready.wait()
         if self.error:
             raise CloudConnectionError(self.error)
         if not self.running:
@@ -223,7 +221,7 @@ class CloudClient:
         profile.setdefault("session_profile", {}).update(resolution="1280x720", fps=30)
         self._game = CloudGame(
             CloudGameConfig(core_config=CoreConfig(profile), root_dir=self.account.root_dir,
-                            queue_type=self.queue_type, max_polls=180, ws_log_payload=False,
+                            queue_type=self.queue_type, ws_log_payload=False,
                             video_frame_interval=0.1 if self.on_frame else None),
             callbacks=CloudGameCallbacks(on_status=self._status, on_video_frame=self.on_frame),
         )

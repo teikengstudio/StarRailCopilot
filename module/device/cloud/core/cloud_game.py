@@ -345,7 +345,6 @@ class CloudGame:
     def dispatch_config(self) -> DispatchConfig:
         """生成调度阶段专用配置。"""
         return DispatchConfig(
-            max_polls=self.config.max_polls,
             queue_type=self.config.queue_type,
             node=self.config.node,
             speed_client_type=self.config.speed_client_type,

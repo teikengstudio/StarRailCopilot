@@ -11,7 +11,6 @@ from .config import CoreConfig
 @dataclass
 class CloudGameConfig:
     max_seconds: int = 0
-    max_polls: int = 3000
     queue_type: str = ""
     node: str = ""
     # None = 跟随 core_config.platform_profile（桌面键鼠=7；手机触控=8）

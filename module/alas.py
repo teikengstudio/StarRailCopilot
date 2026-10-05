@@ -77,7 +77,9 @@ class AzurLaneAutoScript:
             if not self.config.is_task_supported(inflection.camelize(command)):
                 logger.warning(f'Task `{command}` is disabled in cloud protocol mode')
                 return True
-            self.device.screenshot()
+            # Protocol screenshots start a session; stopping must never connect first.
+            if command != 'stop' or not self.config.is_cloud_direct:
+                self.device.screenshot()
             self.device.screenshot_tracking.clear()
             self.__getattribute__(command)()
             return True

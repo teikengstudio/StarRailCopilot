@@ -514,7 +514,6 @@ class CloudProxy:
             self._heartbeat_thread = threading.Thread(target=self._heartbeat, args=(self._heartbeat_stop,), daemon=True)
             self._heartbeat_thread.start()
         self._call("start")
-        deadline = time.monotonic() + 1860
         while not self.running:
             if cancel_event is not None and cancel_event.is_set():
                 self.stop()
@@ -523,9 +522,6 @@ class CloudProxy:
                 raise CloudConnectionError(self.error)
             if not self.bridge["state"].get("scheduler", False):
                 raise CloudConnectionError("Cloud scheduler lease was released.")
-            if time.monotonic() >= deadline:
-                self.stop()
-                raise CloudConnectionError("Cloud startup timed out.")
             time.sleep(0.05)
 
     def _heartbeat(self, stop_event):
